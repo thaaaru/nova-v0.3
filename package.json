@@ -1,0 +1,31 @@
+{
+  "name": "@thaaaru/nova-v0.3",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "bin": { "nova": "./dist/cli.js" },
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "nova": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.2.11",
+    "@langchain/langgraph": "^1.4.15",
+    "@langchain/langgraph-checkpoint-sqlite": "^1.0.4",
+    "@langchain/openai": "^1.5.13",
+    "better-sqlite3": "^13.0.3",
+    "commander": "^15.0.0",
+    "playwright": "^1.63.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.5.1",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.0"
+  }
+}
