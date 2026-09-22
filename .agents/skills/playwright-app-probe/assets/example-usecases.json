@@ -1,0 +1,108 @@
+{
+  "app": "https://tasks.example.com",
+  "usecases": [
+    {
+      "id": "UC-AUTH-01",
+      "title": "Registered user logs in with valid credentials",
+      "category": "authentication",
+      "priority": "P0",
+      "actor": "anonymous visitor",
+      "preconditions": ["Account qa.user@example.com exists with a known password"],
+      "entry": "/login",
+      "evidence": ["form#login-form on /login (POST /api/auth/login observed, 200)", "cookie 'sid' set after login (storage-state.json)", "/tasks redirected to /login when unauthenticated"],
+      "main_flow": [
+        {"action": "fill", "target": "email", "value": "qa.user@example.com"},
+        {"action": "fill", "target": "password", "value": "${QA_PASSWORD}"},
+        {"action": "click", "target": "submit"}
+      ],
+      "expected": [
+        "Redirect to /tasks",
+        "Cookie 'sid' set",
+        {"action": "expectVisible", "target": "userMenu"}
+      ],
+      "variants": [
+        {"id": "UC-AUTH-01-N1", "type": "negative", "title": "Wrong password shows generic error and sets no session",
+          "steps": [
+            {"action": "fill", "target": "email", "value": "qa.user@example.com"},
+            {"action": "fill", "target": "password", "value": "definitely-wrong"},
+            {"action": "click", "target": "submit"}
+          ],
+          "expected": ["Shows 'Invalid email or password'", "No cookie 'sid'", "URL contains /login"]},
+        {"id": "UC-AUTH-01-B1", "type": "boundary", "title": "Empty submit shows required-field validation",
+          "steps": [{"action": "click", "target": "submit"}],
+          "expected": ["Shows 'Email is required'", "URL contains /login"]},
+        {"id": "UC-AUTH-01-S1", "type": "security", "title": "Session cookie carries HttpOnly and Secure flags",
+          "steps": [
+            {"action": "fill", "target": "email", "value": "qa.user@example.com"},
+            {"action": "fill", "target": "password", "value": "${QA_PASSWORD}"},
+            {"action": "click", "target": "submit"}
+          ],
+          "expected": ["Cookie 'sid' set", "Cookie 'sid' has HttpOnly and Secure flags"]}
+      ],
+      "locators": {
+        "email": {"strategy": "css", "value": "#email"},
+        "password": {"strategy": "css", "value": "#password"},
+        "submit": {"strategy": "role", "value": "button", "name": "Sign in"},
+        "userMenu": "testid:user-menu"
+      }
+    },
+    {
+      "id": "UC-TASK-01",
+      "title": "User creates a task with title and priority",
+      "category": "task",
+      "priority": "P0",
+      "actor": "registered user",
+      "preconditions": ["Logged in as qa.user@example.com"],
+      "entry": "/tasks",
+      "evidence": ["button role 'New task' on /tasks (opensDialog)", "form#task-form fields: title (required, maxlength=120), priority select [Low, Medium, High]", "POST /api/tasks 201 observed"],
+      "main_flow": [
+        {"action": "click", "target": "newTask"},
+        {"action": "fill", "target": "title", "value": "Probe test task"},
+        {"action": "select", "target": "priority", "value": "High"},
+        {"action": "click", "target": "save"}
+      ],
+      "expected": ["Shows 'Probe test task'", {"action": "expectResponse", "target": "/api/tasks", "value": "201"}],
+      "variants": [
+        {"id": "UC-TASK-01-N1", "type": "negative", "title": "Empty title is rejected",
+          "steps": [{"action": "click", "target": "newTask"}, {"action": "click", "target": "save"}],
+          "expected": ["Shows 'Title is required'"]},
+        {"id": "UC-TASK-01-B1", "type": "boundary", "title": "Title at maxlength 120 is accepted, 121 is truncated or rejected",
+          "steps": [{"action": "click", "target": "newTask"}, {"action": "fill", "target": "title", "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}],
+          "expected": ["title input value length is <= 120 after typing 121 chars (check maxlength attribute behaviour)"]}
+      ],
+      "locators": {
+        "newTask": "role:button/New task",
+        "title": "#task-title",
+        "priority": "select[name=\"priority\"]",
+        "save": "role:button/Save"
+      }
+    },
+    {
+      "id": "UC-SEC-01",
+      "title": "Gated routes reject unauthenticated access",
+      "category": "security",
+      "priority": "P0",
+      "actor": "anonymous visitor",
+      "entry": "/tasks",
+      "evidence": ["/tasks, /tasks/{id}, /settings redirected to /login in unauthenticated crawl"],
+      "main_flow": [{"action": "goto", "target": "/settings"}],
+      "expected": ["Redirect to /login"],
+      "variants": [],
+      "locators": {}
+    },
+    {
+      "id": "UC-API-01",
+      "title": "Reports endpoint returns 500 on dashboard load",
+      "category": "api",
+      "priority": "P1",
+      "actor": "registered user",
+      "status": "unverified",
+      "entry": "/dashboard",
+      "evidence": ["GET /api/reports/summary observed with status 500 on /dashboard"],
+      "main_flow": [{"action": "goto", "target": "/dashboard"}],
+      "expected": [{"action": "expectResponse", "target": "/api/reports/summary", "value": "200"}],
+      "variants": [],
+      "locators": {}
+    }
+  ]
+}

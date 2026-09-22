@@ -1,13 +1,21 @@
 import { randomUUID } from "node:crypto";
 import type { DiscoverySummary } from "./discovery.js";
+import type { ApplicationProbeInventory } from "./app-probe.js";
 import { sanitizeEvidence } from "./evidence.js";
 import type { ApplicationEvidencePackage, TestPlan } from "./domain.js";
 
-export function buildDiscoveryEvidence(target: string, discovery: DiscoverySummary): ApplicationEvidencePackage {
+export function buildDiscoveryEvidence(target: string, discovery: DiscoverySummary, probe?: ApplicationProbeInventory): ApplicationEvidencePackage {
   return sanitizeEvidence(target, [
     ...discovery.routes.map((route) => ({ sourceType: "route", source: route, content: new URL(route).pathname })),
     ...discovery.titles.map((title, index) => ({ sourceType: "page-title", source: discovery.routes[index] ?? target, content: title })),
     ...discovery.headings.map((heading) => ({ sourceType: "page-heading", source: target, content: heading })),
+    ...discovery.controls.map((control) => ({ sourceType: control.kind, source: control.route ?? target, content: control.label || control.route || control.kind })),
+    ...discovery.apiOperations.map((operation) => ({ sourceType: "api-operation", source: operation.path, content: `${operation.method} ${operation.path} → ${operation.status ?? "unknown"}` })),
+    ...(probe?.pages.flatMap((page) => [
+      ...page.headings.map((heading) => ({ sourceType: "probe-heading", source: page.route, content: heading })),
+      ...page.forms.map((form) => ({ sourceType: "probe-form", source: page.route, content: `${form.method} form with ${form.fields} visible fields` })),
+      ...page.links.map((link) => ({ sourceType: "probe-link", source: page.route, content: link })),
+    ]) ?? []),
   ]);
 }
 

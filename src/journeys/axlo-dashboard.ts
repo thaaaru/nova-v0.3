@@ -7,6 +7,13 @@ export const axloDashboardJourney = {
   allowedRoutes: ["/dashboard", "/tables", "/kitchen", "/calendar", "/pos/takeaway"],
   readOnlyActions: ["Open dashboard", "Read KPI cards", "Inspect visible summaries", "Follow allowed dashboard links", "Collect console and failed-network evidence"],
   prohibitedActions: ["Create, edit, send, cancel, or pay for orders", "Change tables, tickets, reservations, users, settings, products, or themes", "Download or export customer data", "Call POST, PUT, PATCH, or DELETE except approved login"],
+  assertions: {
+    "/dashboard": [["Open Tables"], ["Bill Requested"], ["Kitchen Queue"], ["Takeaway Ready"]],
+    "/tables": [["Tables"]],
+    "/kitchen": [["Kitchen"]],
+    "/calendar": [["Calendar"]],
+    "/pos/takeaway": [["Takeaway"]],
+  },
 } as const;
 
 export type JourneyAuditEvent = { timestamp: string; route: string; action: string; result: "passed" | "failed" | "blocked"; detail?: string };

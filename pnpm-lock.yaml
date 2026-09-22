@@ -33,6 +33,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@playwright/cli':
+        specifier: ^0.1.21
+        version: 0.1.21
       '@types/better-sqlite3':
         specifier: ^9.6.0
         version: 9.6.0
@@ -267,6 +270,11 @@ packages:
 
   '@oxc-project/types@0.150.0':
     resolution: {integrity: sha512-rDS5/31E9HfPl/CIzGrn0DOlvBbXFseQ5URJ9sYMfstbKLD/c6Gm9vmRzRGDdAXyOIL4zmO37lc9RIwYqVruZw==}
+
+  '@playwright/cli@0.1.21':
+    resolution: {integrity: sha512-FfxmVJj2wJlsxPksUO+4N7gqimPEQPajpocl2Mk97ENIGfAVZ4aElzPb5sDdGXHI9J/3Y8EtUiUTas0VsTm/sg==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   '@rolldown/binding-android-arm-eabi@1.2.9':
     resolution: {integrity: sha512-tNISae1QEf/vkb3xkRcjV5SEdzPE97We5IVaa2Z8jSszQPZ8U60B/YCYpw4QI7VidYsBtKavczXf+DyDs9WGxw==}
@@ -710,8 +718,18 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
+  playwright-core@1.64.0-alpha-1789764292000:
+    resolution: {integrity: sha512-ZgRaybFv4rRy7QMGnYprEGFdNJnvapNqcaER2w96bDQA+40BWIle1el1Yh9KHD3E6XYmieMB+r+UxFTCauTGGQ==}
+    engines: {node: '>=20'}
+    hasBin: true
+
   playwright@1.63.0:
     resolution: {integrity: sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.64.0-alpha-1789764292000:
+    resolution: {integrity: sha512-3Ngs4ERGdC912uW3srEDtNVey4u1wSaQ/EFcKhxMpz0by0K6nidaJgM087pLpJc1osytiVnL7ack5gvgPArPNw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -1062,6 +1080,11 @@ snapshots:
 
   '@oxc-project/types@0.150.0': {}
 
+  '@playwright/cli@0.1.21':
+    dependencies:
+      playwright: 1.64.0-alpha-1789764292000
+      playwright-core: 1.64.0-alpha-1789764292000
+
   '@rolldown/binding-android-arm-eabi@1.2.9':
     optional: true
 
@@ -1370,9 +1393,15 @@ snapshots:
 
   playwright-core@1.63.0: {}
 
+  playwright-core@1.64.0-alpha-1789764292000: {}
+
   playwright@1.63.0:
     dependencies:
       playwright-core: 1.63.0
+
+  playwright@1.64.0-alpha-1789764292000:
+    dependencies:
+      playwright-core: 1.64.0-alpha-1789764292000
 
   postcss@8.5.28:
     dependencies:

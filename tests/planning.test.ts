@@ -3,7 +3,7 @@ import { buildDiscoveryEvidence, suggestDeterministicTests } from "../src/planni
 
 describe("deterministic planning", () => {
   it("creates only evidence-linked read-only suggestions", () => {
-    const discovery = { pages: 1, routes: ["https://app.example.test/dashboard"], titles: ["Dashboard"], headings: ["Overview"], authenticationUsed: true };
+    const discovery = { pages: 1, routes: ["https://app.example.test/dashboard"], titles: ["Dashboard"], headings: ["Overview"], controls: [], apiOperations: [], authenticationUsed: true };
     const evidence = buildDiscoveryEvidence("https://app.example.test", discovery);
     const plan = suggestDeterministicTests("https://app.example.test", "qa", ["app.example.test"], discovery, evidence);
     expect(plan.cases).toHaveLength(1); expect(plan.cases[0]).toMatchObject({ sideEffect: "read_only", source: "rule" });

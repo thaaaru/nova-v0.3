@@ -3,8 +3,12 @@
   "version": "0.3.0",
   "private": true,
   "type": "module",
-  "bin": { "nova": "./dist/cli.js" },
-  "engines": { "node": ">=22" },
+  "bin": {
+    "nova": "./dist/cli.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -22,6 +26,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/cli": "^0.1.21",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.5.1",
     "tsx": "^4.23.13",
