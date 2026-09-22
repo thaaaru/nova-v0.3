@@ -4,6 +4,12 @@ import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { EncryptedAuthenticationProfiles, resolveAuthentication } from "./auth.js";
 import { createPlaywrightBrowserSignIn, probeAuthenticationRequired } from "./browser-auth.js";
+import { normalizePnpmArgv } from "./cli-argv.js";
+import { discoverApplication } from "./discovery.js";
+import { buildDiscoveryEvidence, suggestDeterministicTests } from "./planning.js";
+import { startApprovalServer } from "./approval-server.js";
+import { spawn } from "node:child_process";
+import { executeApprovedReadOnly } from "./execution.js";
 
 export const BANNER = ` _   _   ___   __     __    _
 | \\ | | / _ \\  \\ \\   / /   / \\
@@ -25,13 +31,24 @@ program.command("test [url]").option("--target <url>").option("--environment <en
   if (root.json) { process.stdout.write(JSON.stringify({ status: "NEW", target }) + "\n"); return; }
   process.stdout.write(`NOVA  Probing entry context\nTarget  ${target}\n`);
   const authenticationRequired = options.requireAuth || await probeAuthenticationRequired(target);
-  if (!authenticationRequired) { process.stdout.write("Authentication  Not required\nNext            Discover public application areas\n"); return; }
-  await handleAuthentication(target, options.project, options.environment);
+  const auth = authenticationRequired ? await handleAuthentication(target, options.project, options.environment) : { storageState: undefined, label: "Not required" };
+  if (!auth) return;
+  process.stdout.write(`Authentication  ${auth.label}\nNOVA  Discovering application\n`);
+  const discovery = await discoverApplication({ target, storageState: auth.storageState, onProgress: (message) => process.stdout.write(`  ${message}\n`) });
+  process.stdout.write(`\nDiscovery complete\nPages          ${discovery.pages}\nRoutes         ${discovery.routes.length}\nHeadings       ${discovery.headings.length}\nAuthentication ${discovery.authenticationUsed ? "Saved session" : "Public only"}\n`);
+  const evidence = buildDiscoveryEvidence(target, discovery);
+  const plan = suggestDeterministicTests(target, options.environment, [new URL(target).hostname], discovery, evidence);
+  const review = await startApprovalServer(plan, { applicationName: new URL(target).hostname, target, environment: options.environment, scope: [new URL(target).hostname] });
+  openBrowser(review.url);
+  process.stdout.write(`\nSuggested tests  ${plan.cases.length}\nEvidence          ${evidence.evidence.length}\nApproval review   ${review.url}\nWaiting for approval in your browser…\n`);
+  const decision = await review.wait();
+  process.stdout.write(`Approval  ${decision.submission.decision}\n`);
+  if (decision.submission.decision === "approved") await requestExecution(plan, decision.submission.selectedTestCaseIds, auth.storageState);
 });
 program.action(() => { if (!stdin.isTTY) missingTarget(); if (shouldShowBanner({ noBanner: !program.opts().banner, json: program.opts().json })) process.stdout.write(`${BANNER}\n\n`); process.stdout.write("Target URL: "); });
-program.parseAsync().catch((error) => { if (error.message !== "NOVA_INPUT_REQUIRED") { process.stderr.write(`${error.message}\n`); process.exitCode = 1; } });
+program.parseAsync(normalizePnpmArgv(process.argv)).catch((error) => { if (error.message !== "NOVA_INPUT_REQUIRED") { process.stderr.write(`${error.message}\n`); process.exitCode = 1; } });
 
-async function handleAuthentication(target: string, projectId: string, environment: string): Promise<void> {
+async function handleAuthentication(target: string, projectId: string, environment: string): Promise<{ storageState?: unknown; label: string } | undefined> {
   if (!stdin.isTTY) throw new Error("NOVA_AUTH_INTERACTION_REQUIRED: Authentication requires an interactive terminal; use a pre-approved profile in CI.");
   const profiles = EncryptedAuthenticationProfiles.fromEnvironment();
   const saved = profiles.list(projectId, environment, target);
@@ -39,20 +56,38 @@ async function handleAuthentication(target: string, projectId: string, environme
   try {
     stdout.write(`\nAuthentication required\n[Enter] Sign in using browser\n[P] Use saved authentication profile${saved.length ? ` (${saved.length} available)` : " (none)"}\n[G] Discover public areas only\n[Esc/Q] Cancel\n`);
     const answer = (await io.question("Choice: ")).trim().toLowerCase();
-    if (answer === "g") { await resolveAuthentication({ choice: "public_only", target, projectId, environment, profiles }); stdout.write("Authentication  Public areas only\nNext            Discover application\n"); return; }
+    if (answer === "g") { await resolveAuthentication({ choice: "public_only", target, projectId, environment, profiles }); return { label: "Public areas only" }; }
     if (answer === "p") {
       if (!saved.length) throw new Error("No matching saved authentication profile exists.");
       const selected = saved[0]!;
-      await resolveAuthentication({ choice: "saved_profile", target, projectId, environment, profiles, profileId: selected.id });
-      stdout.write(`Authentication  Saved profile ${selected.id.slice(0, 8)} reused\nNext            Discover application\n`); return;
+      const result = await resolveAuthentication({ choice: "saved_profile", target, projectId, environment, profiles, profileId: selected.id });
+      return { storageState: result.storageState, label: `Saved profile ${selected.id.slice(0, 8)} reused` };
     }
     if (answer === "q" || answer === "\u001b") { await resolveAuthentication({ choice: "cancel", target, projectId, environment, profiles }); return; }
-    await resolveAuthentication({
+    const result = await resolveAuthentication({
       choice: "browser", target, projectId, environment, profiles,
       signIn: createPlaywrightBrowserSignIn({
         waitForCompletion: async (message) => { stdout.write(`${message}\n`); await io.question("Press Enter when complete: "); },
       }),
     });
-    stdout.write("Authentication  Browser session saved securely\nNext            Discover application\n");
+    return { storageState: result.storageState, label: "Browser session saved securely" };
   } finally { io.close(); }
+}
+
+async function requestExecution(plan: import("./domain.js").TestPlan, selected: string[], storageState?: unknown): Promise<void> {
+  const io = createInterface({ input: stdin, output: stdout });
+  try {
+    const answer = (await io.question(`\nTest plan approved\nApproved  ${selected.length}\n\n[Enter] Run approved tests\n[S] Save for later\nChoice: `)).trim().toLowerCase();
+    if (answer === "s" || answer === "q") { stdout.write("Execution request  Saved for later\n"); return; }
+    const result = await executeApprovedReadOnly(plan, selected, storageState);
+    stdout.write(`Execution complete\nPassed  ${result.passed}\nFailed  ${result.failed}\n`);
+  } finally { io.close(); }
+}
+
+function openBrowser(url: string): void {
+  const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
+  const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
+  const child = spawn(command, args, { stdio: "ignore", detached: true });
+  child.on("error", () => process.stdout.write(`Open this approval URL manually: ${url}\n`));
+  child.unref();
 }

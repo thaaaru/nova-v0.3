@@ -50,5 +50,5 @@ export async function resolveAuthentication(options: { choice: AuthenticationCho
   if (options.choice === "saved_profile") { if (!options.profileId) throw new Error("Select a saved authentication profile."); return { method: "saved_profile", storageState: options.profiles.load(options.profileId, options.projectId, options.environment, options.target) }; }
   if (!options.signIn) throw new Error("Browser sign-in is unavailable. Configure the approved browser authenticator.");
   const session = await options.signIn(options.target);
-  try { const profile = options.profiles.save({ projectId: options.projectId, environment: options.environment, targetOrigin: new URL(options.target).origin, method: "browser" }, await session.storageState()); return { method: "browser", profile }; } finally { await session.close(); }
+  try { const storageState = await session.storageState(); const profile = options.profiles.save({ projectId: options.projectId, environment: options.environment, targetOrigin: new URL(options.target).origin, method: "browser" }, storageState); return { method: "browser", profile, storageState }; } finally { await session.close(); }
 }
